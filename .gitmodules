@@ -1,0 +1,7 @@
+[submodule "pdf"]
+	path = pdf
+	url = https://github.com/JantuDeb/pdf.git
+	branch = compose
+[submodule "pdfbox"]
+	path = pdfbox
+	url = https://github.com/JantuDeb/pdfbox_android.git

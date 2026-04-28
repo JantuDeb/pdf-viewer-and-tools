@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">PDF Viewer</string>
+    <string name="tab_files">Files</string>
+    <string name="tab_tools">Tools</string>
+    <string name="tab_sign">Sign</string>
+    <string name="tab_scanner">Scanner</string>
+    <string name="open_pdf">Open PDF</string>
+    <string name="clear_history">Clear History</string>
+    <string name="clear_history_message">Remove all recent files? Internal copies will also be deleted.</string>
+    <string name="clear_action">Clear</string>
+    <string name="cancel_action">Cancel</string>
+    <string name="remove_action">Remove</string>
+    <string name="remove_pdf_title">Remove PDF?</string>
+    <string name="remove_pdf_message">Remove "%1$s"? This cannot be undone.</string>
+    <string name="empty_files_title">No recent PDFs</string>
+    <string name="empty_files_message">Tap "Open PDF" to get started</string>
+</resources>
