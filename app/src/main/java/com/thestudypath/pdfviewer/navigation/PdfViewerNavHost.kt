@@ -62,7 +62,8 @@ fun PdfViewerNavHost(
         }
         composable(AppDestination.Sign.route) {
             SignRoute(
-                viewModel = viewModel,
+                catalogViewModel = viewModel,
+                onOpenDocument = onOpenDocument,
                 onImportDocument = onImportDocument,
             )
         }

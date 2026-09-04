@@ -9,12 +9,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -32,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.thestudypath.pdfviewer.catalog.DocumentItem
 import com.thestudypath.pdfviewer.ui.documents.DocumentSummaryCard
+import com.thestudypath.pdfviewer.ui.results.ResultActionButtons
 import java.util.Locale
 
 @Composable
@@ -45,6 +44,7 @@ fun ImagesToPdfWorkspaceCard(
     onCreatePdf: () -> Unit,
     onOpenResult: (DocumentItem) -> Unit,
     onShareResult: (DocumentItem) -> Unit,
+    onSaveCopyResult: (DocumentItem) -> Unit,
 ) {
     val canCreatePdf = uiState.selectedImages.isNotEmpty() && !uiState.isPreparingImages && !uiState.isCreatingPdf
 
@@ -166,31 +166,11 @@ fun ImagesToPdfWorkspaceCard(
                         fontWeight = FontWeight.SemiBold,
                     )
                     DocumentSummaryCard(document = document)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Button(
-                            onClick = { onOpenResult(document) },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
-                            Text(
-                                text = "Open",
-                                modifier = Modifier.padding(start = 8.dp),
-                            )
-                        }
-                        Button(
-                            onClick = { onShareResult(document) },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(Icons.Default.Share, contentDescription = null)
-                            Text(
-                                text = "Share",
-                                modifier = Modifier.padding(start = 8.dp),
-                            )
-                        }
-                    }
+                    ResultActionButtons(
+                        onOpen = { onOpenResult(document) },
+                        onShare = { onShareResult(document) },
+                        onSaveCopy = { onSaveCopyResult(document) },
+                    )
                 }
             }
         }

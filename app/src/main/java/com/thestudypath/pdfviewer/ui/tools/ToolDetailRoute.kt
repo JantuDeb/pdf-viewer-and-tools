@@ -3,7 +3,6 @@ package com.thestudypath.pdfviewer.ui.tools
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
@@ -50,27 +48,55 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.thestudypath.pdfviewer.catalog.DocumentCatalogUiState
 import com.thestudypath.pdfviewer.catalog.DocumentCatalogViewModel
 import com.thestudypath.pdfviewer.catalog.DocumentItem
+import com.thestudypath.pdfviewer.processing.PdfCropPageRegionResult
+import com.thestudypath.pdfviewer.processing.ExtractEmbeddedImagesResult
+import com.thestudypath.pdfviewer.processing.PdfToImagesResult
+import com.thestudypath.pdfviewer.ui.tools.crop.CropPageRegionViewModel
+import com.thestudypath.pdfviewer.ui.tools.crop.CropPageRegionWorkspaceCard
 import com.thestudypath.pdfviewer.ui.documents.DocumentPickerSheet
 import com.thestudypath.pdfviewer.ui.documents.DocumentSelectionMode
 import com.thestudypath.pdfviewer.ui.documents.DocumentSummaryCard
+import com.thestudypath.pdfviewer.ui.results.ResultActionButtons
+import com.thestudypath.pdfviewer.ui.results.openFileExternally
+import com.thestudypath.pdfviewer.ui.results.rememberFileExportLauncher
+import com.thestudypath.pdfviewer.ui.results.shareFile
+import com.thestudypath.pdfviewer.ui.results.shareFiles
+import com.thestudypath.pdfviewer.ui.results.sharePdfDocument
 import com.thestudypath.pdfviewer.ui.tools.compress.CompressPdfViewModel
 import com.thestudypath.pdfviewer.ui.tools.compress.CompressPdfWorkspaceCard
 import com.thestudypath.pdfviewer.ui.tools.compress.formatFileSize
 import com.thestudypath.pdfviewer.ui.tools.compress.profileLabel
+import com.thestudypath.pdfviewer.ui.tools.embeddedimages.ExtractEmbeddedImagesViewModel
+import com.thestudypath.pdfviewer.ui.tools.embeddedimages.ExtractEmbeddedImagesWorkspaceCard
+import com.thestudypath.pdfviewer.ui.tools.embeddedimages.imageMimeTypeFor
 import com.thestudypath.pdfviewer.ui.tools.images.ImagesToPdfViewModel
 import com.thestudypath.pdfviewer.ui.tools.images.ImagesToPdfWorkspaceCard
 import com.thestudypath.pdfviewer.ui.tools.merge.MergePdfUiState
 import com.thestudypath.pdfviewer.ui.tools.merge.MergePdfViewModel
+import com.thestudypath.pdfviewer.ui.tools.password.AddPasswordViewModel
+import com.thestudypath.pdfviewer.ui.tools.password.AddPasswordWorkspaceCard
+import com.thestudypath.pdfviewer.ui.tools.password.RemovePasswordViewModel
+import com.thestudypath.pdfviewer.ui.tools.password.RemovePasswordWorkspaceCard
+import com.thestudypath.pdfviewer.ui.tools.pdfimages.PdfToImagesViewModel
+import com.thestudypath.pdfviewer.ui.tools.pdfimages.PdfToImagesWorkspaceCard
+import com.thestudypath.pdfviewer.ui.tools.pdfimages.mimeType
+import com.thestudypath.pdfviewer.ui.tools.pages.DeletePagesViewModel
+import com.thestudypath.pdfviewer.ui.tools.pages.DeletePagesWorkspaceCard
+import com.thestudypath.pdfviewer.ui.tools.pages.ExtractPagesViewModel
+import com.thestudypath.pdfviewer.ui.tools.pages.ExtractPagesWorkspaceCard
+import com.thestudypath.pdfviewer.ui.tools.pages.RotatePagesViewModel
+import com.thestudypath.pdfviewer.ui.tools.pages.RotatePagesWorkspaceCard
 import com.thestudypath.pdfviewer.ui.tools.split.SplitPdfViewModel
 import com.thestudypath.pdfviewer.ui.tools.split.SplitPdfWorkspaceCard
 import com.thestudypath.pdfviewer.ui.tools.text.ExtractTextViewModel
 import com.thestudypath.pdfviewer.ui.tools.text.ExtractTextWorkspaceCard
+import com.thestudypath.pdfviewer.ui.tools.watermark.WatermarkPdfViewModel
+import com.thestudypath.pdfviewer.ui.tools.watermark.WatermarkPdfWorkspaceCard
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -94,6 +120,21 @@ fun ToolDetailRoute(
             onNavigateBack = onNavigateBack,
             onOpenDocument = onOpenDocument,
         )
+        ToolIds.PdfToImages -> PdfToImagesToolRoute(
+            catalogViewModel = catalogViewModel,
+            onNavigateBack = onNavigateBack,
+            onImportDocument = onImportDocument,
+        )
+        ToolIds.ExtractEmbeddedImages -> ExtractEmbeddedImagesToolRoute(
+            catalogViewModel = catalogViewModel,
+            onNavigateBack = onNavigateBack,
+            onImportDocument = onImportDocument,
+        )
+        ToolIds.CropPageRegion -> CropPageRegionToolRoute(
+            catalogViewModel = catalogViewModel,
+            onNavigateBack = onNavigateBack,
+            onImportDocument = onImportDocument,
+        )
         ToolIds.MergePdf -> MergePdfToolRoute(
             catalogViewModel = catalogViewModel,
             onNavigateBack = onNavigateBack,
@@ -111,12 +152,39 @@ fun ToolDetailRoute(
             onNavigateBack = onNavigateBack,
             onImportDocument = onImportDocument,
         )
-        ToolIds.AddPassword,
-        ToolIds.RemovePassword,
-        -> PlaceholderToolDetailRoute(
-            toolId = toolId,
+        ToolIds.AddPassword -> AddPasswordToolRoute(
             catalogViewModel = catalogViewModel,
             onNavigateBack = onNavigateBack,
+            onImportDocument = onImportDocument,
+        )
+        ToolIds.RemovePassword -> RemovePasswordToolRoute(
+            catalogViewModel = catalogViewModel,
+            onNavigateBack = onNavigateBack,
+            onOpenDocument = onOpenDocument,
+            onImportDocument = onImportDocument,
+        )
+        ToolIds.WatermarkPdf -> WatermarkPdfToolRoute(
+            catalogViewModel = catalogViewModel,
+            onNavigateBack = onNavigateBack,
+            onOpenDocument = onOpenDocument,
+            onImportDocument = onImportDocument,
+        )
+        ToolIds.RotatePages -> RotatePagesToolRoute(
+            catalogViewModel = catalogViewModel,
+            onNavigateBack = onNavigateBack,
+            onOpenDocument = onOpenDocument,
+            onImportDocument = onImportDocument,
+        )
+        ToolIds.ExtractPages -> ExtractPagesToolRoute(
+            catalogViewModel = catalogViewModel,
+            onNavigateBack = onNavigateBack,
+            onOpenDocument = onOpenDocument,
+            onImportDocument = onImportDocument,
+        )
+        ToolIds.DeletePages -> DeletePagesToolRoute(
+            catalogViewModel = catalogViewModel,
+            onNavigateBack = onNavigateBack,
+            onOpenDocument = onOpenDocument,
             onImportDocument = onImportDocument,
         )
 
@@ -134,9 +202,13 @@ private fun CompressPdfToolRoute(
 ) {
     val context = LocalContext.current
     val appContext = context.applicationContext
+    val scope = rememberCoroutineScope()
     val catalogUiState by catalogViewModel.uiState.collectAsStateWithLifecycle()
     val availableDocuments = (catalogUiState as? DocumentCatalogUiState.Success)?.documents.orEmpty()
     val snackbarHostState = remember { SnackbarHostState() }
+    val fileExportLauncher = rememberFileExportLauncher { message ->
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
     val compressViewModel: CompressPdfViewModel = viewModel(
         factory = remember(appContext) { CompressPdfViewModel.factory(appContext) },
     )
@@ -192,7 +264,14 @@ private fun CompressPdfToolRoute(
                         compressViewModel.compressSelectedDocument(catalogViewModel::addOrUpdate)
                     },
                     onOpenResult = onOpenDocument,
-                    onShareResult = { document -> shareDocument(context, document) },
+                    onShareResult = { document -> sharePdfDocument(context, document) },
+                    onSaveCopyResult = { document ->
+                        fileExportLauncher.launch(
+                            file = File(document.filePath),
+                            mimeType = "application/pdf",
+                            displayName = document.displayName,
+                        )
+                    },
                 )
             }
         }
@@ -232,7 +311,11 @@ private fun ImagesToPdfToolRoute(
 ) {
     val context = LocalContext.current
     val appContext = context.applicationContext
+    val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val fileExportLauncher = rememberFileExportLauncher { message ->
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
     val imagesToPdfViewModel: ImagesToPdfViewModel = viewModel(
         factory = remember(appContext) { ImagesToPdfViewModel.factory(appContext) },
     )
@@ -280,7 +363,14 @@ private fun ImagesToPdfToolRoute(
                         imagesToPdfViewModel.createPdf(catalogViewModel::addOrUpdate)
                     },
                     onOpenResult = onOpenDocument,
-                    onShareResult = { document -> shareDocument(context, document) },
+                    onShareResult = { document -> sharePdfDocument(context, document) },
+                    onSaveCopyResult = { document ->
+                        fileExportLauncher.launch(
+                            file = File(document.filePath),
+                            mimeType = "application/pdf",
+                            displayName = document.displayName,
+                        )
+                    },
                 )
             }
         }
@@ -297,9 +387,13 @@ private fun MergePdfToolRoute(
 ) {
     val context = LocalContext.current
     val appContext = context.applicationContext
+    val scope = rememberCoroutineScope()
     val catalogUiState by catalogViewModel.uiState.collectAsStateWithLifecycle()
     val availableDocuments = (catalogUiState as? DocumentCatalogUiState.Success)?.documents.orEmpty()
     val snackbarHostState = remember { SnackbarHostState() }
+    val fileExportLauncher = rememberFileExportLauncher { message ->
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
     val mergeViewModel: MergePdfViewModel = viewModel(
         factory = remember(appContext) { MergePdfViewModel.factory(appContext) },
     )
@@ -350,7 +444,14 @@ private fun MergePdfToolRoute(
                     onRemoveDocument = mergeViewModel::removeDocument,
                     onMerge = { mergeViewModel.mergeSelectedDocuments { } },
                     onOpenMergedDocument = onOpenDocument,
-                    onShareMergedDocument = { document -> shareDocument(context, document) },
+                    onShareMergedDocument = { document -> sharePdfDocument(context, document) },
+                    onSaveCopyMergedDocument = { document ->
+                        fileExportLauncher.launch(
+                            file = File(document.filePath),
+                            mimeType = "application/pdf",
+                            displayName = document.displayName,
+                        )
+                    },
                 )
             }
         }
@@ -393,9 +494,13 @@ private fun SplitPdfToolRoute(
 ) {
     val context = LocalContext.current
     val appContext = context.applicationContext
+    val scope = rememberCoroutineScope()
     val catalogUiState by catalogViewModel.uiState.collectAsStateWithLifecycle()
     val availableDocuments = (catalogUiState as? DocumentCatalogUiState.Success)?.documents.orEmpty()
     val snackbarHostState = remember { SnackbarHostState() }
+    val fileExportLauncher = rememberFileExportLauncher { message ->
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
     val splitViewModel: SplitPdfViewModel = viewModel(
         factory = remember(appContext) { SplitPdfViewModel.factory(appContext) },
     )
@@ -449,7 +554,14 @@ private fun SplitPdfToolRoute(
                         }
                     },
                     onOpenSplitDocument = onOpenDocument,
-                    onShareSplitDocument = { document -> shareDocument(context, document) },
+                    onShareSplitDocument = { document -> sharePdfDocument(context, document) },
+                    onSaveCopySplitDocument = { document ->
+                        fileExportLauncher.launch(
+                            file = File(document.filePath),
+                            mimeType = "application/pdf",
+                            displayName = document.displayName,
+                        )
+                    },
                 )
             }
         }
@@ -493,6 +605,9 @@ private fun ExtractTextToolRoute(
     val catalogUiState by catalogViewModel.uiState.collectAsStateWithLifecycle()
     val availableDocuments = (catalogUiState as? DocumentCatalogUiState.Success)?.documents.orEmpty()
     val snackbarHostState = remember { SnackbarHostState() }
+    val fileExportLauncher = rememberFileExportLauncher { message ->
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
     val extractTextViewModel: ExtractTextViewModel = viewModel(
         factory = remember(appContext) { ExtractTextViewModel.factory(appContext) },
     )
@@ -558,6 +673,13 @@ private fun ExtractTextToolRoute(
                             title = result.displayName,
                         )
                     },
+                    onSaveCopyTextFile = { result ->
+                        fileExportLauncher.launch(
+                            file = result.outputFile,
+                            mimeType = "text/plain",
+                            displayName = result.displayName,
+                        )
+                    },
                     onCopyText = { text ->
                         copyTextToClipboard(context, text)
                         scope.launch {
@@ -596,25 +718,47 @@ private fun ExtractTextToolRoute(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PlaceholderToolDetailRoute(
-    toolId: String,
+private fun AddPasswordToolRoute(
     catalogViewModel: DocumentCatalogViewModel,
     onNavigateBack: () -> Unit,
     onImportDocument: () -> Unit,
 ) {
-    val tool = toolDefinitionFor(toolId)
+    val context = LocalContext.current
+    val appContext = context.applicationContext
+    val scope = rememberCoroutineScope()
     val catalogUiState by catalogViewModel.uiState.collectAsStateWithLifecycle()
     val availableDocuments = (catalogUiState as? DocumentCatalogUiState.Success)?.documents.orEmpty()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    var showDocumentPicker by remember { mutableStateOf(false) }
-    var selectedDocumentIds by remember { mutableStateOf(setOf<String>()) }
-    val selectedDocuments = remember(availableDocuments, selectedDocumentIds) {
-        availableDocuments.filter { selectedDocumentIds.contains(it.id) }
+    val fileExportLauncher = rememberFileExportLauncher { message ->
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
+    val addPasswordViewModel: AddPasswordViewModel = viewModel(
+        factory = remember(appContext) { AddPasswordViewModel.factory(appContext) },
+    )
+    val addPasswordUiState by addPasswordViewModel.uiState.collectAsStateWithLifecycle()
+    var pickerSelection by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(addPasswordUiState.showDocumentPicker, addPasswordUiState.selectedDocument?.id) {
+        if (addPasswordUiState.showDocumentPicker) {
+            pickerSelection = addPasswordUiState.selectedDocument?.id
+        }
+    }
+
+    LaunchedEffect(addPasswordUiState.errorMessage) {
+        addPasswordUiState.errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            addPasswordViewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(addPasswordUiState.resultDocument?.id) {
+        addPasswordUiState.resultDocument?.let { document ->
+            snackbarHostState.showSnackbar("Protected ${document.displayName} with a password.")
+        }
     }
 
     ToolDetailScaffold(
-        title = tool?.title ?: "Tool",
+        title = toolDefinitionFor(ToolIds.AddPassword)?.title ?: "Add Password",
         onNavigateBack = onNavigateBack,
         snackbarHostState = snackbarHostState,
     ) { innerPadding ->
@@ -626,120 +770,884 @@ private fun PlaceholderToolDetailRoute(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    ),
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        tool?.let {
-                            Icon(
-                                imageVector = it.icon,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Text(
-                                text = it.title,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Text(
-                                text = it.description,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            it.status?.let { status ->
-                                AssistChip(
-                                    onClick = {},
-                                    label = { Text(status) },
-                                )
-                            }
-                        }
-
-                        Button(
-                            onClick = { showDocumentPicker = true },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(
-                                when (tool?.selectionMode) {
-                                    DocumentSelectionMode.Multiple -> "Choose PDFs"
-                                    else -> "Choose PDF"
-                                }
-                            )
-                        }
-
-                        if (selectedDocumentIds.isNotEmpty()) {
-                            AssistChip(
-                                onClick = { showDocumentPicker = true },
-                                label = {
-                                    Text(
-                                        "${selectedDocumentIds.size} document${if (selectedDocumentIds.size == 1) "" else "s"} selected"
-                                    )
-                                },
-                            )
-                        }
-
-                        Button(
-                            onClick = {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        "${tool?.title ?: "Tool"} staged with ${selectedDocumentIds.size} document(s). Processing arrives in the next milestone."
-                                    )
-                                }
-                            },
-                            enabled = selectedDocumentIds.isNotEmpty(),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("Continue")
-                        }
-                    }
-                }
-            }
-
-            items(selectedDocuments, key = { it.id }) { document ->
-                DocumentSummaryCard(document = document)
+                AddPasswordWorkspaceCard(
+                    uiState = addPasswordUiState,
+                    onChooseDocument = addPasswordViewModel::showDocumentPicker,
+                    onUserPasswordChange = addPasswordViewModel::updateUserPassword,
+                    onConfirmPasswordChange = addPasswordViewModel::updateConfirmPassword,
+                    onOwnerPasswordChange = addPasswordViewModel::updateOwnerPassword,
+                    onOutputFileNameChange = addPasswordViewModel::updateOutputFileName,
+                    onProtectPdf = {
+                        addPasswordViewModel.protectSelectedDocument(catalogViewModel::addOrUpdate)
+                    },
+                    onOpenProtectedPdf = { document ->
+                        openFileExternally(
+                            context = context,
+                            file = File(document.filePath),
+                            mimeType = "application/pdf",
+                            chooserTitle = "Open protected PDF",
+                        )
+                    },
+                    onShareProtectedPdf = { document -> sharePdfDocument(context, document) },
+                    onSaveCopyProtectedPdf = { document ->
+                        fileExportLauncher.launch(
+                            file = File(document.filePath),
+                            mimeType = "application/pdf",
+                            displayName = document.displayName,
+                        )
+                    },
+                )
             }
         }
     }
 
-    if (showDocumentPicker && tool?.selectionMode != null) {
+    if (addPasswordUiState.showDocumentPicker) {
         DocumentPickerSheet(
-            title = tool.title,
+            title = "Choose a PDF to protect",
             uiState = catalogUiState,
-            selectionMode = tool.selectionMode,
-            selectedDocumentIds = selectedDocumentIds,
+            selectionMode = DocumentSelectionMode.Single,
+            selectedDocumentIds = pickerSelection?.let(::setOf).orEmpty(),
             onDocumentToggle = { document ->
-                selectedDocumentIds = when (tool.selectionMode) {
-                    DocumentSelectionMode.Single -> setOf(document.id)
-                    DocumentSelectionMode.Multiple -> {
-                        if (selectedDocumentIds.contains(document.id)) {
-                            selectedDocumentIds - document.id
-                        } else {
-                            selectedDocumentIds + document.id
-                        }
-                    }
-                }
+                pickerSelection = document.id
             },
-            onDismissRequest = { showDocumentPicker = false },
+            onDismissRequest = addPasswordViewModel::dismissDocumentPicker,
             onImportClick = onImportDocument,
             onConfirm = {
-                selectedDocumentIds = when (tool.selectionMode) {
-                    DocumentSelectionMode.Single -> selectedDocumentIds.take(1).toSet()
-                    DocumentSelectionMode.Multiple -> selectedDocumentIds
+                pickerSelection?.let { selectedId ->
+                    addPasswordViewModel.confirmDocumentSelection(
+                        allDocuments = availableDocuments,
+                        selectedDocumentId = selectedId,
+                    )
                 }
-                showDocumentPicker = false
             },
-            confirmLabel = "Use selection",
-            helperText = when (tool.id) {
-                ToolIds.AddPassword -> "Choose one PDF to prepare the password-protection flow."
-                ToolIds.RemovePassword -> "Choose one protected PDF to prepare the unlock flow."
-                else -> null
+            confirmLabel = "Use document",
+            helperText = "Choose one PDF and save a new password-protected copy in app storage.",
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RemovePasswordToolRoute(
+    catalogViewModel: DocumentCatalogViewModel,
+    onNavigateBack: () -> Unit,
+    onOpenDocument: (DocumentItem) -> Unit,
+    onImportDocument: () -> Unit,
+) {
+    val context = LocalContext.current
+    val appContext = context.applicationContext
+    val scope = rememberCoroutineScope()
+    val catalogUiState by catalogViewModel.uiState.collectAsStateWithLifecycle()
+    val availableDocuments = (catalogUiState as? DocumentCatalogUiState.Success)?.documents.orEmpty()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val fileExportLauncher = rememberFileExportLauncher { message ->
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
+    val removePasswordViewModel: RemovePasswordViewModel = viewModel(
+        factory = remember(appContext) { RemovePasswordViewModel.factory(appContext) },
+    )
+    val removePasswordUiState by removePasswordViewModel.uiState.collectAsStateWithLifecycle()
+    var pickerSelection by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(removePasswordUiState.showDocumentPicker, removePasswordUiState.selectedDocument?.id) {
+        if (removePasswordUiState.showDocumentPicker) {
+            pickerSelection = removePasswordUiState.selectedDocument?.id
+        }
+    }
+
+    LaunchedEffect(removePasswordUiState.errorMessage) {
+        removePasswordUiState.errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            removePasswordViewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(removePasswordUiState.resultDocument?.id) {
+        removePasswordUiState.resultDocument?.let { document ->
+            snackbarHostState.showSnackbar("Removed the password from ${document.displayName}.")
+        }
+    }
+
+    ToolDetailScaffold(
+        title = toolDefinitionFor(ToolIds.RemovePassword)?.title ?: "Remove Password",
+        onNavigateBack = onNavigateBack,
+        snackbarHostState = snackbarHostState,
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                RemovePasswordWorkspaceCard(
+                    uiState = removePasswordUiState,
+                    onChooseDocument = removePasswordViewModel::showDocumentPicker,
+                    onCurrentPasswordChange = removePasswordViewModel::updateCurrentPassword,
+                    onOutputFileNameChange = removePasswordViewModel::updateOutputFileName,
+                    onRemovePassword = {
+                        removePasswordViewModel.removePassword(catalogViewModel::addOrUpdate)
+                    },
+                    onOpenUnlockedPdf = onOpenDocument,
+                    onShareUnlockedPdf = { document -> sharePdfDocument(context, document) },
+                    onSaveCopyUnlockedPdf = { document ->
+                        fileExportLauncher.launch(
+                            file = File(document.filePath),
+                            mimeType = "application/pdf",
+                            displayName = document.displayName,
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    if (removePasswordUiState.showDocumentPicker) {
+        DocumentPickerSheet(
+            title = "Choose a protected PDF",
+            uiState = catalogUiState,
+            selectionMode = DocumentSelectionMode.Single,
+            selectedDocumentIds = pickerSelection?.let(::setOf).orEmpty(),
+            onDocumentToggle = { document ->
+                pickerSelection = document.id
             },
+            onDismissRequest = removePasswordViewModel::dismissDocumentPicker,
+            onImportClick = onImportDocument,
+            onConfirm = {
+                pickerSelection?.let { selectedId ->
+                    removePasswordViewModel.confirmDocumentSelection(
+                        allDocuments = availableDocuments,
+                        selectedDocumentId = selectedId,
+                    )
+                }
+            },
+            confirmLabel = "Use document",
+            helperText = "Choose one protected PDF, enter its current password, and save an unlocked copy.",
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RotatePagesToolRoute(
+    catalogViewModel: DocumentCatalogViewModel,
+    onNavigateBack: () -> Unit,
+    onOpenDocument: (DocumentItem) -> Unit,
+    onImportDocument: () -> Unit,
+) {
+    val context = LocalContext.current
+    val appContext = context.applicationContext
+    val scope = rememberCoroutineScope()
+    val catalogUiState by catalogViewModel.uiState.collectAsStateWithLifecycle()
+    val availableDocuments = (catalogUiState as? DocumentCatalogUiState.Success)?.documents.orEmpty()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val fileExportLauncher = rememberFileExportLauncher { message ->
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
+    val rotatePagesViewModel: RotatePagesViewModel = viewModel(
+        factory = remember(appContext) { RotatePagesViewModel.factory(appContext) },
+    )
+    val rotatePagesUiState by rotatePagesViewModel.uiState.collectAsStateWithLifecycle()
+    var pickerSelection by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(rotatePagesUiState.showDocumentPicker, rotatePagesUiState.selectedDocument?.id) {
+        if (rotatePagesUiState.showDocumentPicker) {
+            pickerSelection = rotatePagesUiState.selectedDocument?.id
+        }
+    }
+
+    LaunchedEffect(rotatePagesUiState.errorMessage) {
+        rotatePagesUiState.errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            rotatePagesViewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(rotatePagesUiState.resultDocument?.id) {
+        rotatePagesUiState.resultDocument?.let { document ->
+            snackbarHostState.showSnackbar("Rotated pages in ${document.displayName}.")
+        }
+    }
+
+    ToolDetailScaffold(
+        title = toolDefinitionFor(ToolIds.RotatePages)?.title ?: "Rotate Pages",
+        onNavigateBack = onNavigateBack,
+        snackbarHostState = snackbarHostState,
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                RotatePagesWorkspaceCard(
+                    uiState = rotatePagesUiState,
+                    onChooseDocument = rotatePagesViewModel::showDocumentPicker,
+                    onPageRangesChange = rotatePagesViewModel::updatePageRangesInput,
+                    onRotationOptionChange = rotatePagesViewModel::updateRotationOption,
+                    onOutputFileNameChange = rotatePagesViewModel::updateOutputFileName,
+                    onRotatePages = { rotatePagesViewModel.rotatePages(catalogViewModel::addOrUpdate) },
+                    onOpenResult = onOpenDocument,
+                    onShareResult = { document -> sharePdfDocument(context, document) },
+                    onSaveCopyResult = { document ->
+                        fileExportLauncher.launch(
+                            file = File(document.filePath),
+                            mimeType = "application/pdf",
+                            displayName = document.displayName,
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    if (rotatePagesUiState.showDocumentPicker) {
+        DocumentPickerSheet(
+            title = "Choose a PDF to rotate pages",
+            uiState = catalogUiState,
+            selectionMode = DocumentSelectionMode.Single,
+            selectedDocumentIds = pickerSelection?.let(::setOf).orEmpty(),
+            onDocumentToggle = { document -> pickerSelection = document.id },
+            onDismissRequest = rotatePagesViewModel::dismissDocumentPicker,
+            onImportClick = onImportDocument,
+            onConfirm = {
+                pickerSelection?.let { selectedId ->
+                    rotatePagesViewModel.confirmDocumentSelection(
+                        allDocuments = availableDocuments,
+                        selectedDocumentId = selectedId,
+                    )
+                }
+            },
+            confirmLabel = "Use document",
+            helperText = "Choose one PDF, specify which pages to rotate, and save the result as a new copy.",
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExtractPagesToolRoute(
+    catalogViewModel: DocumentCatalogViewModel,
+    onNavigateBack: () -> Unit,
+    onOpenDocument: (DocumentItem) -> Unit,
+    onImportDocument: () -> Unit,
+) {
+    val context = LocalContext.current
+    val appContext = context.applicationContext
+    val scope = rememberCoroutineScope()
+    val catalogUiState by catalogViewModel.uiState.collectAsStateWithLifecycle()
+    val availableDocuments = (catalogUiState as? DocumentCatalogUiState.Success)?.documents.orEmpty()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val fileExportLauncher = rememberFileExportLauncher { message ->
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
+    val extractPagesViewModel: ExtractPagesViewModel = viewModel(
+        factory = remember(appContext) { ExtractPagesViewModel.factory(appContext) },
+    )
+    val extractPagesUiState by extractPagesViewModel.uiState.collectAsStateWithLifecycle()
+    var pickerSelection by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(extractPagesUiState.showDocumentPicker, extractPagesUiState.selectedDocument?.id) {
+        if (extractPagesUiState.showDocumentPicker) {
+            pickerSelection = extractPagesUiState.selectedDocument?.id
+        }
+    }
+
+    LaunchedEffect(extractPagesUiState.errorMessage) {
+        extractPagesUiState.errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            extractPagesViewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(extractPagesUiState.resultDocument?.id) {
+        extractPagesUiState.resultDocument?.let { document ->
+            snackbarHostState.showSnackbar("Extracted pages into ${document.displayName}.")
+        }
+    }
+
+    ToolDetailScaffold(
+        title = toolDefinitionFor(ToolIds.ExtractPages)?.title ?: "Extract Pages",
+        onNavigateBack = onNavigateBack,
+        snackbarHostState = snackbarHostState,
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                ExtractPagesWorkspaceCard(
+                    uiState = extractPagesUiState,
+                    onChooseDocument = extractPagesViewModel::showDocumentPicker,
+                    onPageRangesChange = extractPagesViewModel::updatePageRangesInput,
+                    onOutputFileNameChange = extractPagesViewModel::updateOutputFileName,
+                    onExtractPages = { extractPagesViewModel.extractPages(catalogViewModel::addOrUpdate) },
+                    onOpenResult = onOpenDocument,
+                    onShareResult = { document -> sharePdfDocument(context, document) },
+                    onSaveCopyResult = { document ->
+                        fileExportLauncher.launch(
+                            file = File(document.filePath),
+                            mimeType = "application/pdf",
+                            displayName = document.displayName,
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    if (extractPagesUiState.showDocumentPicker) {
+        DocumentPickerSheet(
+            title = "Choose a PDF to extract pages",
+            uiState = catalogUiState,
+            selectionMode = DocumentSelectionMode.Single,
+            selectedDocumentIds = pickerSelection?.let(::setOf).orEmpty(),
+            onDocumentToggle = { document -> pickerSelection = document.id },
+            onDismissRequest = extractPagesViewModel::dismissDocumentPicker,
+            onImportClick = onImportDocument,
+            onConfirm = {
+                pickerSelection?.let { selectedId ->
+                    extractPagesViewModel.confirmDocumentSelection(
+                        allDocuments = availableDocuments,
+                        selectedDocumentId = selectedId,
+                    )
+                }
+            },
+            confirmLabel = "Use document",
+            helperText = "Choose one PDF and keep only the pages you want in a new PDF copy.",
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DeletePagesToolRoute(
+    catalogViewModel: DocumentCatalogViewModel,
+    onNavigateBack: () -> Unit,
+    onOpenDocument: (DocumentItem) -> Unit,
+    onImportDocument: () -> Unit,
+) {
+    val context = LocalContext.current
+    val appContext = context.applicationContext
+    val scope = rememberCoroutineScope()
+    val catalogUiState by catalogViewModel.uiState.collectAsStateWithLifecycle()
+    val availableDocuments = (catalogUiState as? DocumentCatalogUiState.Success)?.documents.orEmpty()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val fileExportLauncher = rememberFileExportLauncher { message ->
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
+    val deletePagesViewModel: DeletePagesViewModel = viewModel(
+        factory = remember(appContext) { DeletePagesViewModel.factory(appContext) },
+    )
+    val deletePagesUiState by deletePagesViewModel.uiState.collectAsStateWithLifecycle()
+    var pickerSelection by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(deletePagesUiState.showDocumentPicker, deletePagesUiState.selectedDocument?.id) {
+        if (deletePagesUiState.showDocumentPicker) {
+            pickerSelection = deletePagesUiState.selectedDocument?.id
+        }
+    }
+
+    LaunchedEffect(deletePagesUiState.errorMessage) {
+        deletePagesUiState.errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            deletePagesViewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(deletePagesUiState.resultDocument?.id) {
+        deletePagesUiState.resultDocument?.let { document ->
+            snackbarHostState.showSnackbar("Deleted pages from ${document.displayName}.")
+        }
+    }
+
+    ToolDetailScaffold(
+        title = toolDefinitionFor(ToolIds.DeletePages)?.title ?: "Delete Pages",
+        onNavigateBack = onNavigateBack,
+        snackbarHostState = snackbarHostState,
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                DeletePagesWorkspaceCard(
+                    uiState = deletePagesUiState,
+                    onChooseDocument = deletePagesViewModel::showDocumentPicker,
+                    onPageRangesChange = deletePagesViewModel::updatePageRangesInput,
+                    onOutputFileNameChange = deletePagesViewModel::updateOutputFileName,
+                    onDeletePages = { deletePagesViewModel.deletePages(catalogViewModel::addOrUpdate) },
+                    onOpenResult = onOpenDocument,
+                    onShareResult = { document -> sharePdfDocument(context, document) },
+                    onSaveCopyResult = { document ->
+                        fileExportLauncher.launch(
+                            file = File(document.filePath),
+                            mimeType = "application/pdf",
+                            displayName = document.displayName,
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    if (deletePagesUiState.showDocumentPicker) {
+        DocumentPickerSheet(
+            title = "Choose a PDF to delete pages from",
+            uiState = catalogUiState,
+            selectionMode = DocumentSelectionMode.Single,
+            selectedDocumentIds = pickerSelection?.let(::setOf).orEmpty(),
+            onDocumentToggle = { document -> pickerSelection = document.id },
+            onDismissRequest = deletePagesViewModel::dismissDocumentPicker,
+            onImportClick = onImportDocument,
+            onConfirm = {
+                pickerSelection?.let { selectedId ->
+                    deletePagesViewModel.confirmDocumentSelection(
+                        allDocuments = availableDocuments,
+                        selectedDocumentId = selectedId,
+                    )
+                }
+            },
+            confirmLabel = "Use document",
+            helperText = "Choose one PDF, list the pages to remove, and save the remaining pages as a new copy.",
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WatermarkPdfToolRoute(
+    catalogViewModel: DocumentCatalogViewModel,
+    onNavigateBack: () -> Unit,
+    onOpenDocument: (DocumentItem) -> Unit,
+    onImportDocument: () -> Unit,
+) {
+    val context = LocalContext.current
+    val appContext = context.applicationContext
+    val scope = rememberCoroutineScope()
+    val catalogUiState by catalogViewModel.uiState.collectAsStateWithLifecycle()
+    val availableDocuments = (catalogUiState as? DocumentCatalogUiState.Success)?.documents.orEmpty()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val fileExportLauncher = rememberFileExportLauncher { message ->
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
+    val watermarkViewModel: WatermarkPdfViewModel = viewModel(
+        factory = remember(appContext) { WatermarkPdfViewModel.factory(appContext) },
+    )
+    val watermarkUiState by watermarkViewModel.uiState.collectAsStateWithLifecycle()
+    var pickerSelection by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(watermarkUiState.showDocumentPicker, watermarkUiState.selectedDocument?.id) {
+        if (watermarkUiState.showDocumentPicker) {
+            pickerSelection = watermarkUiState.selectedDocument?.id
+        }
+    }
+
+    LaunchedEffect(watermarkUiState.errorMessage) {
+        watermarkUiState.errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            watermarkViewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(watermarkUiState.resultDocument?.id) {
+        watermarkUiState.resultDocument?.let { document ->
+            val pageCount = watermarkUiState.watermarkedPageCount
+            snackbarHostState.showSnackbar(
+                if (pageCount != null) {
+                    "Applied watermark to $pageCount page${if (pageCount == 1) "" else "s"} in ${document.displayName}."
+                } else {
+                    "Saved ${document.displayName}."
+                }
+            )
+        }
+    }
+
+    ToolDetailScaffold(
+        title = toolDefinitionFor(ToolIds.WatermarkPdf)?.title ?: "Watermark PDF",
+        onNavigateBack = onNavigateBack,
+        snackbarHostState = snackbarHostState,
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                WatermarkPdfWorkspaceCard(
+                    uiState = watermarkUiState,
+                    onChooseDocument = watermarkViewModel::showDocumentPicker,
+                    onWatermarkTextChange = watermarkViewModel::updateWatermarkText,
+                    onPlacementChange = watermarkViewModel::updatePlacement,
+                    onSizeOptionChange = watermarkViewModel::updateSizeOption,
+                    onPageRangesChange = watermarkViewModel::updatePageRangesInput,
+                    onOutputFileNameChange = watermarkViewModel::updateOutputFileName,
+                    onApplyWatermark = { watermarkViewModel.applyWatermark(catalogViewModel::addOrUpdate) },
+                    onOpenResult = onOpenDocument,
+                    onShareResult = { document -> sharePdfDocument(context, document) },
+                    onSaveCopyResult = { document ->
+                        fileExportLauncher.launch(
+                            file = File(document.filePath),
+                            mimeType = "application/pdf",
+                            displayName = document.displayName,
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    if (watermarkUiState.showDocumentPicker) {
+        DocumentPickerSheet(
+            title = "Choose a PDF to watermark",
+            uiState = catalogUiState,
+            selectionMode = DocumentSelectionMode.Single,
+            selectedDocumentIds = pickerSelection?.let(::setOf).orEmpty(),
+            onDocumentToggle = { document -> pickerSelection = document.id },
+            onDismissRequest = watermarkViewModel::dismissDocumentPicker,
+            onImportClick = onImportDocument,
+            onConfirm = {
+                pickerSelection?.let { selectedId ->
+                    watermarkViewModel.confirmDocumentSelection(
+                        allDocuments = availableDocuments,
+                        selectedDocumentId = selectedId,
+                    )
+                }
+            },
+            confirmLabel = "Use document",
+            helperText = "Choose one PDF, add a text watermark, and save a new watermarked copy.",
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PdfToImagesToolRoute(
+    catalogViewModel: DocumentCatalogViewModel,
+    onNavigateBack: () -> Unit,
+    onImportDocument: () -> Unit,
+) {
+    val context = LocalContext.current
+    val appContext = context.applicationContext
+    val catalogUiState by catalogViewModel.uiState.collectAsStateWithLifecycle()
+    val availableDocuments = (catalogUiState as? DocumentCatalogUiState.Success)?.documents.orEmpty()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val pdfToImagesViewModel: PdfToImagesViewModel = viewModel(
+        factory = remember(appContext) { PdfToImagesViewModel.factory(appContext) },
+    )
+    val pdfToImagesUiState by pdfToImagesViewModel.uiState.collectAsStateWithLifecycle()
+    var pickerSelection by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(pdfToImagesUiState.showDocumentPicker, pdfToImagesUiState.selectedDocument?.id) {
+        if (pdfToImagesUiState.showDocumentPicker) {
+            pickerSelection = pdfToImagesUiState.selectedDocument?.id
+        }
+    }
+
+    LaunchedEffect(pdfToImagesUiState.errorMessage) {
+        pdfToImagesUiState.errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            pdfToImagesViewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(pdfToImagesUiState.result?.outputDirectory?.absolutePath) {
+        pdfToImagesUiState.result?.let { result ->
+            snackbarHostState.showSnackbar(
+                "Exported ${result.exportedImages.size} page${if (result.exportedImages.size == 1) "" else "s"} as ${result.format.name.uppercase()} images."
+            )
+        }
+    }
+
+    ToolDetailScaffold(
+        title = toolDefinitionFor(ToolIds.PdfToImages)?.title ?: "PDF to Images",
+        onNavigateBack = onNavigateBack,
+        snackbarHostState = snackbarHostState,
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                PdfToImagesWorkspaceCard(
+                    uiState = pdfToImagesUiState,
+                    onChooseDocument = pdfToImagesViewModel::showDocumentPicker,
+                    onPageRangesChange = pdfToImagesViewModel::updatePageRangesInput,
+                    onImageFormatChange = pdfToImagesViewModel::updateImageFormat,
+                    onQualityOptionChange = pdfToImagesViewModel::updateQualityOption,
+                    onOutputFolderNameChange = pdfToImagesViewModel::updateOutputFolderName,
+                    onExportImages = pdfToImagesViewModel::exportImages,
+                    onOpenImage = { file, format ->
+                        openFileExternally(
+                            context = context,
+                            file = file,
+                            mimeType = format.mimeType(),
+                            chooserTitle = "Open image",
+                        )
+                    },
+                    onShareImage = { file, format ->
+                        shareFile(
+                            context = context,
+                            file = file,
+                            mimeType = format.mimeType(),
+                            chooserTitle = "Share image",
+                            title = file.name,
+                        )
+                    },
+                    onShareAllImages = { result -> shareImageExportResult(context, result) },
+                )
+            }
+        }
+    }
+
+    if (pdfToImagesUiState.showDocumentPicker) {
+        DocumentPickerSheet(
+            title = "Choose a PDF to export as images",
+            uiState = catalogUiState,
+            selectionMode = DocumentSelectionMode.Single,
+            selectedDocumentIds = pickerSelection?.let(::setOf).orEmpty(),
+            onDocumentToggle = { document -> pickerSelection = document.id },
+            onDismissRequest = pdfToImagesViewModel::dismissDocumentPicker,
+            onImportClick = onImportDocument,
+            onConfirm = {
+                pickerSelection?.let { selectedId ->
+                    pdfToImagesViewModel.confirmDocumentSelection(
+                        allDocuments = availableDocuments,
+                        selectedDocumentId = selectedId,
+                    )
+                }
+            },
+            confirmLabel = "Use document",
+            helperText = "Choose one PDF, pick which pages to export, and save one PNG or JPEG image per page.",
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExtractEmbeddedImagesToolRoute(
+    catalogViewModel: DocumentCatalogViewModel,
+    onNavigateBack: () -> Unit,
+    onImportDocument: () -> Unit,
+) {
+    val context = LocalContext.current
+    val appContext = context.applicationContext
+    val catalogUiState by catalogViewModel.uiState.collectAsStateWithLifecycle()
+    val availableDocuments = (catalogUiState as? DocumentCatalogUiState.Success)?.documents.orEmpty()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val extractEmbeddedImagesViewModel: ExtractEmbeddedImagesViewModel = viewModel(
+        factory = remember(appContext) { ExtractEmbeddedImagesViewModel.factory(appContext) },
+    )
+    val extractEmbeddedImagesUiState by extractEmbeddedImagesViewModel.uiState.collectAsStateWithLifecycle()
+    var pickerSelection by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(extractEmbeddedImagesUiState.showDocumentPicker, extractEmbeddedImagesUiState.selectedDocument?.id) {
+        if (extractEmbeddedImagesUiState.showDocumentPicker) {
+            pickerSelection = extractEmbeddedImagesUiState.selectedDocument?.id
+        }
+    }
+
+    LaunchedEffect(extractEmbeddedImagesUiState.errorMessage) {
+        extractEmbeddedImagesUiState.errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            extractEmbeddedImagesViewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(extractEmbeddedImagesUiState.result?.outputDirectory?.absolutePath) {
+        extractEmbeddedImagesUiState.result?.let { result ->
+            snackbarHostState.showSnackbar(
+                "Extracted ${result.exportedImages.size} embedded image${if (result.exportedImages.size == 1) "" else "s"}."
+            )
+        }
+    }
+
+    ToolDetailScaffold(
+        title = toolDefinitionFor(ToolIds.ExtractEmbeddedImages)?.title ?: "Extract Embedded Images",
+        onNavigateBack = onNavigateBack,
+        snackbarHostState = snackbarHostState,
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                ExtractEmbeddedImagesWorkspaceCard(
+                    uiState = extractEmbeddedImagesUiState,
+                    onChooseDocument = extractEmbeddedImagesViewModel::showDocumentPicker,
+                    onPageRangesChange = extractEmbeddedImagesViewModel::updatePageRangesInput,
+                    onOutputFolderNameChange = extractEmbeddedImagesViewModel::updateOutputFolderName,
+                    onExtractImages = extractEmbeddedImagesViewModel::extractImages,
+                    onOpenImage = { file ->
+                        openFileExternally(
+                            context = context,
+                            file = file,
+                            mimeType = imageMimeTypeFor(file),
+                            chooserTitle = "Open image",
+                        )
+                    },
+                    onShareImage = { file ->
+                        shareFile(
+                            context = context,
+                            file = file,
+                            mimeType = imageMimeTypeFor(file),
+                            chooserTitle = "Share image",
+                            title = file.name,
+                        )
+                    },
+                    onShareAllImages = { result -> shareEmbeddedImageResult(context, result) },
+                )
+            }
+        }
+    }
+
+    if (extractEmbeddedImagesUiState.showDocumentPicker) {
+        DocumentPickerSheet(
+            title = "Choose a PDF to extract images from",
+            uiState = catalogUiState,
+            selectionMode = DocumentSelectionMode.Single,
+            selectedDocumentIds = pickerSelection?.let(::setOf).orEmpty(),
+            onDocumentToggle = { document -> pickerSelection = document.id },
+            onDismissRequest = extractEmbeddedImagesViewModel::dismissDocumentPicker,
+            onImportClick = onImportDocument,
+            onConfirm = {
+                pickerSelection?.let { selectedId ->
+                    extractEmbeddedImagesViewModel.confirmDocumentSelection(
+                        allDocuments = availableDocuments,
+                        selectedDocumentId = selectedId,
+                    )
+                }
+            },
+            confirmLabel = "Use document",
+            helperText = "Choose one PDF, scan selected pages for embedded images, and export each unique image into a folder.",
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CropPageRegionToolRoute(
+    catalogViewModel: DocumentCatalogViewModel,
+    onNavigateBack: () -> Unit,
+    onImportDocument: () -> Unit,
+) {
+    val context = LocalContext.current
+    val appContext = context.applicationContext
+    val catalogUiState by catalogViewModel.uiState.collectAsStateWithLifecycle()
+    val availableDocuments = (catalogUiState as? DocumentCatalogUiState.Success)?.documents.orEmpty()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val cropViewModel: CropPageRegionViewModel = viewModel(
+        factory = remember(appContext) { CropPageRegionViewModel.factory(appContext) },
+    )
+    val cropUiState by cropViewModel.uiState.collectAsStateWithLifecycle()
+    var pickerSelection by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(cropUiState.showDocumentPicker, cropUiState.selectedDocument?.id) {
+        if (cropUiState.showDocumentPicker) {
+            pickerSelection = cropUiState.selectedDocument?.id
+        }
+    }
+
+    LaunchedEffect(cropUiState.errorMessage) {
+        cropUiState.errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            cropViewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(cropUiState.result?.outputDirectory?.absolutePath) {
+        cropUiState.result?.let { result ->
+            snackbarHostState.showSnackbar(
+                "Exported ${result.exportedImages.size} cropped page region${if (result.exportedImages.size == 1) "" else "s"}."
+            )
+        }
+    }
+
+    ToolDetailScaffold(
+        title = toolDefinitionFor(ToolIds.CropPageRegion)?.title ?: "Crop Page Region",
+        onNavigateBack = onNavigateBack,
+        snackbarHostState = snackbarHostState,
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                CropPageRegionWorkspaceCard(
+                    uiState = cropUiState,
+                    onChooseDocument = cropViewModel::showDocumentPicker,
+                    onPageRangesChange = cropViewModel::updatePageRangesInput,
+                    onImageFormatChange = cropViewModel::updateImageFormat,
+                    onQualityOptionChange = cropViewModel::updateQualityOption,
+                    onPresetChange = cropViewModel::applyPreset,
+                    onLeftPercentChange = cropViewModel::updateLeftPercent,
+                    onTopPercentChange = cropViewModel::updateTopPercent,
+                    onRightPercentChange = cropViewModel::updateRightPercent,
+                    onBottomPercentChange = cropViewModel::updateBottomPercent,
+                    onOutputFolderNameChange = cropViewModel::updateOutputFolderName,
+                    onExportCrop = cropViewModel::exportCroppedRegions,
+                    onOpenImage = { file, format ->
+                        openFileExternally(
+                            context = context,
+                            file = file,
+                            mimeType = format.mimeType(),
+                            chooserTitle = "Open cropped image",
+                        )
+                    },
+                    onShareImage = { file, format ->
+                        shareFile(
+                            context = context,
+                            file = file,
+                            mimeType = format.mimeType(),
+                            chooserTitle = "Share cropped image",
+                            title = file.name,
+                        )
+                    },
+                    onShareAllImages = { result -> shareCropPageRegionResult(context, result) },
+                )
+            }
+        }
+    }
+
+    if (cropUiState.showDocumentPicker) {
+        DocumentPickerSheet(
+            title = "Choose a PDF to crop",
+            uiState = catalogUiState,
+            selectionMode = DocumentSelectionMode.Single,
+            selectedDocumentIds = pickerSelection?.let(::setOf).orEmpty(),
+            onDocumentToggle = { document -> pickerSelection = document.id },
+            onDismissRequest = cropViewModel::dismissDocumentPicker,
+            onImportClick = onImportDocument,
+            onConfirm = {
+                pickerSelection?.let { selectedId ->
+                    cropViewModel.confirmDocumentSelection(
+                        allDocuments = availableDocuments,
+                        selectedDocumentId = selectedId,
+                    )
+                }
+            },
+            confirmLabel = "Use document",
+            helperText = "Choose one PDF, define a page region, and export the selected crop area as PNG or JPEG images.",
         )
     }
 }
@@ -814,6 +1722,7 @@ private fun MergePdfWorkspaceCard(
     onMerge: () -> Unit,
     onOpenMergedDocument: (DocumentItem) -> Unit,
     onShareMergedDocument: (DocumentItem) -> Unit,
+    onSaveCopyMergedDocument: (DocumentItem) -> Unit,
 ) {
     val totalPages = uiState.selectedDocuments.sumOf { it.pageCount }
     val canMerge = uiState.selectedDocuments.size > 1 && !uiState.isMerging
@@ -930,31 +1839,11 @@ private fun MergePdfWorkspaceCard(
                         fontWeight = FontWeight.SemiBold,
                     )
                     DocumentSummaryCard(document = mergedDocument)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Button(
-                            onClick = { onOpenMergedDocument(mergedDocument) },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
-                            Text(
-                                text = "Open",
-                                modifier = Modifier.padding(start = 8.dp),
-                            )
-                        }
-                        Button(
-                            onClick = { onShareMergedDocument(mergedDocument) },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(Icons.Default.Share, contentDescription = null)
-                            Text(
-                                text = "Share",
-                                modifier = Modifier.padding(start = 8.dp),
-                            )
-                        }
-                    }
+                    ResultActionButtons(
+                        onOpen = { onOpenMergedDocument(mergedDocument) },
+                        onShare = { onShareMergedDocument(mergedDocument) },
+                        onSaveCopy = { onSaveCopyMergedDocument(mergedDocument) },
+                    )
                 }
             }
         }
@@ -1009,64 +1898,90 @@ private fun MergeSelectionItem(
     }
 }
 
-private fun shareDocument(
-    context: Context,
-    document: DocumentItem,
-) {
-    val file = File(document.filePath)
-    if (!file.exists()) return
 
-    shareFile(
+private fun shareImageExportResult(
+    context: Context,
+    result: PdfToImagesResult,
+) {
+    val outputFiles = result.exportedImages.map { it.outputFile }.filter(File::exists)
+    if (outputFiles.isEmpty()) return
+
+    if (outputFiles.size == 1) {
+        shareFile(
+            context = context,
+            file = outputFiles.first(),
+            mimeType = result.format.mimeType(),
+            chooserTitle = "Share image",
+            title = outputFiles.first().name,
+        )
+        return
+    }
+
+    shareFiles(
         context = context,
-        file = file,
-        mimeType = "application/pdf",
-        chooserTitle = "Share PDF",
-        title = document.displayName,
+        files = outputFiles,
+        mimeType = result.format.mimeType(),
+        chooserTitle = "Share images",
+        title = result.outputDirectory.name,
     )
 }
 
-private fun shareFile(
+private fun shareEmbeddedImageResult(
     context: Context,
-    file: File,
-    mimeType: String,
-    chooserTitle: String,
-    title: String,
+    result: ExtractEmbeddedImagesResult,
 ) {
-    if (!file.exists()) return
+    val outputFiles = result.exportedImages.map { it.outputFile }.filter(File::exists)
+    if (outputFiles.isEmpty()) return
 
-    val uri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        file,
-    )
-    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-        type = mimeType
-        putExtra(Intent.EXTRA_STREAM, uri)
-        putExtra(Intent.EXTRA_TITLE, title)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    if (outputFiles.size == 1) {
+        val file = outputFiles.first()
+        shareFile(
+            context = context,
+            file = file,
+            mimeType = imageMimeTypeFor(file),
+            chooserTitle = "Share image",
+            title = file.name,
+        )
+        return
     }
-    context.startActivity(Intent.createChooser(shareIntent, chooserTitle))
+
+    shareFiles(
+        context = context,
+        files = outputFiles,
+        mimeType = "image/*",
+        chooserTitle = "Share images",
+        title = result.outputDirectory.name,
+    )
 }
 
-private fun openFileExternally(
+private fun shareCropPageRegionResult(
     context: Context,
-    file: File,
-    mimeType: String,
-    chooserTitle: String,
+    result: PdfCropPageRegionResult,
 ) {
-    if (!file.exists()) return
+    val outputFiles = result.exportedImages.map { it.outputFile }.filter(File::exists)
+    if (outputFiles.isEmpty()) return
 
-    val uri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        file,
-    )
-    val openIntent = Intent(Intent.ACTION_VIEW).apply {
-        setDataAndType(uri, mimeType)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    if (outputFiles.size == 1) {
+        val file = outputFiles.first()
+        shareFile(
+            context = context,
+            file = file,
+            mimeType = result.format.mimeType(),
+            chooserTitle = "Share cropped image",
+            title = file.name,
+        )
+        return
     }
-    context.startActivity(Intent.createChooser(openIntent, chooserTitle))
+
+    shareFiles(
+        context = context,
+        files = outputFiles,
+        mimeType = result.format.mimeType(),
+        chooserTitle = "Share cropped images",
+        title = result.outputDirectory.name,
+    )
 }
+
 
 private fun copyTextToClipboard(
     context: Context,

@@ -7,10 +7,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -28,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.thestudypath.pdfviewer.ui.documents.DocumentSummaryCard
+import com.thestudypath.pdfviewer.ui.results.ResultActionButtons
 
 @Composable
 fun ExtractTextWorkspaceCard(
@@ -40,6 +39,7 @@ fun ExtractTextWorkspaceCard(
     onExtractText: () -> Unit,
     onOpenTextFile: (ExtractedTextResult) -> Unit,
     onShareTextFile: (ExtractedTextResult) -> Unit,
+    onSaveCopyTextFile: (ExtractedTextResult) -> Unit,
     onCopyText: (String) -> Unit,
 ) {
     val canExtract = uiState.selectedDocument != null &&
@@ -205,31 +205,11 @@ fun ExtractTextWorkspaceCard(
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Button(
-                            onClick = { onOpenTextFile(result) },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
-                            Text(
-                                text = "Open",
-                                modifier = Modifier.padding(start = 8.dp),
-                            )
-                        }
-                        Button(
-                            onClick = { onShareTextFile(result) },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(Icons.Default.Share, contentDescription = null)
-                            Text(
-                                text = "Share",
-                                modifier = Modifier.padding(start = 8.dp),
-                            )
-                        }
-                    }
+                    ResultActionButtons(
+                        onOpen = { onOpenTextFile(result) },
+                        onShare = { onShareTextFile(result) },
+                        onSaveCopy = { onSaveCopyTextFile(result) },
+                    )
                     OutlinedButton(
                         onClick = { onCopyText(result.text) },
                         modifier = Modifier.fillMaxWidth(),

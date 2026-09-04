@@ -28,10 +28,11 @@ Current app strengths:
 
 Current gap:
 
-- the app is still organized like a viewer demo, not like a document workflow app
-- there is no shared document picker surface for tools/sign/scanner outputs
-- there is no processing engine yet for split/merge/compress/password/text/sign workflows
+- the workspace shell now exists, but advanced document workflows are still only partially implemented
+- shared document picker and document catalog foundations are now in place
+- a processing engine now powers merge/split/compress/images-to-pdf/pdf-to-images/extract-text/password tools, visible signing, watermarking, and page-organization flows
 - there is no camera/scanner pipeline yet
+- single-file output flows now support open/share/SAF save-copy, but advanced folder/batch export, background job orchestration, and some post-processing tools are still pending
 
 ---
 
@@ -198,6 +199,10 @@ Every tool should end with the same output decisions:
 - open result immediately
 - share result
 
+Current shipped state:
+- the single-file result surfaces now follow this pattern with app-private output, open/share actions, and a SAF `Save copy` flow
+- folder-style and multi-file outputs such as PDF-to-images, embedded-image extraction, crop-export, and split batches still need richer destination handling and more unified result summaries
+
 ## 4.3 Shared background job engine
 
 Use a consistent execution layer for all heavy operations.
@@ -303,6 +308,8 @@ Below is the recommended Phase 1 scope, grouped by priority.
 ## 6.1 Core Phase 1 features
 
 ### A. Merge PDFs
+**Status:** implemented
+
 **User value:** combine multiple documents into one final PDF.
 
 End-to-end flow:
@@ -321,6 +328,8 @@ Backend notes:
 - handle duplicate filenames and password-protected inputs
 
 ### B. Split PDF
+**Status:** implemented
+
 Support both:
 - split every N pages
 - extract custom page ranges
@@ -338,6 +347,8 @@ Backend notes:
 - app should generate a batch result screen
 
 ### C. Compress PDF
+**Status:** implemented
+
 Compression needs to be honest and profile-based.
 
 Suggested presets:
@@ -363,6 +374,8 @@ Reality check:
 - for digitally-generated PDFs, aggressive compression may have limited effect
 
 ### D. Images to PDF (`png`, `jpg`, `jpeg`)
+**Status:** implemented
+
 Must support:
 - multi-image import
 - reordering
@@ -383,6 +396,8 @@ Backend notes:
 - should preserve EXIF rotation correctly
 
 ### E. Add password / Remove password
+**Status:** implemented
+
 End-to-end flow for add password:
 1. Select PDF
 2. Enter owner/user password rules
@@ -399,6 +414,8 @@ Important note:
 - if encryption handlers/providers were stripped, re-add only the minimal standard password support needed for production
 
 ### F. Extract text
+**Status:** implemented
+
 Modes:
 - plain text export
 - page-range text export
@@ -418,6 +435,8 @@ Backend notes:
 - scanned PDFs need OCR fallback because text extraction alone will return little or nothing
 
 ### G. Sign PDF
+**Status:** MVP implemented
+
 There are really **three** sign-related capabilities:
 
 1. visual signature drawing with finger/stylus
@@ -428,6 +447,19 @@ For Phase 1, prioritize:
 - visual signature drawing
 - imported signature image
 - visible signature placement
+
+Current shipped MVP covers:
+- choose a PDF from the shared picker
+- draw a signature in-app
+- import a signature image
+- choose a page, placement preset, and size
+- export a signed copy
+- open, share, or save-copy the result
+
+Still pending for the full milestone:
+- reusable saved signature assets across sessions
+- richer drag/resize/rotate placement editor
+- certificate-backed digital signatures
 
 End-to-end flow:
 1. Open `Sign` tab
@@ -446,17 +478,24 @@ Production note:
 - certificate-backed signing should be a Phase 1.5 or Phase 2 item unless required immediately
 
 ### H. Crop image/area from PDF with visual UI
+**Status:** MVP implemented
+
 Clarify expected output:
 - crop a visible page region and export as image
 - extract embedded images from a PDF
 - both
 
-Recommended Phase 1 behavior:
+Current shipped MVP behavior:
 1. Select PDF
-2. Render selected page to preview
-3. User adjusts crop box visually
-4. Export cropped region as PNG/JPG
-5. Optional: create new PDF from cropped regions later
+2. Choose all pages or page ranges
+3. Pick PNG/JPEG export and a quality level
+4. Choose a crop preset or adjust normalized crop percentages
+5. Export the cropped region from each selected page as image files
+
+Still pending for the fuller milestone:
+- live visual crop box editing on a rendered page preview
+- per-page crop overrides
+- export cropped regions back into PDF if needed later
 
 Implementation note:
 - render page preview with `PdfRenderer`
@@ -471,18 +510,19 @@ These are useful enough to include in the roadmap now.
 
 ### Organize
 - Reorder pages
-- Delete pages
-- Extract selected pages to new PDF
-- Rotate pages
+- Delete pages (**implemented**)
+- Extract selected pages to new PDF (**implemented**)
+- Rotate pages (**implemented**)
 - Duplicate pages
 
 ### Convert / Export
-- PDF to images
-- Extract embedded images
+- PDF to images (**implemented**)
+- Extract embedded images (**implemented**)
+- Crop visible page region (**implemented MVP**)
 - Export page thumbnails/contact sheet
 
 ### Cleanup / Productivity
-- Add watermark (text/image)
+- Add watermark (text **implemented**, image watermark planned)
 - Flatten annotations
 - Rename document
 - Duplicate document
@@ -960,19 +1000,17 @@ This corpus is required before calling the app production ready.
 - add/remove password spike
 
 ## Milestone 2 — signing
-- signature asset storage
-- draw signature
-- import PNG signature
-- placement editor
-- export signed PDF
+- expand the shipped signing MVP with persistent signature assets
+- upgrade placement from presets to full drag/resize/rotate editing
+- refine signing export and result flows
 
 ## Milestone 3 — organize/cleanup tools
-- reorder/delete/extract pages
-- rotate pages
-- watermark
-- PDF to images
-- extract images
-- crop visible page region
+- reorder pages
+- extend the shipped delete/extract/rotate page flows with richer page picking
+- extend the shipped text watermarking MVP with image watermark support and richer placement
+- extend the shipped PDF-to-images MVP with richer export destinations and settings
+- extend the shipped embedded-image extraction MVP with richer destination/preservation options
+- extend the shipped crop-page-region MVP with a visual crop editor and per-page adjustments
 - metadata tools
 - flatten annotations
 

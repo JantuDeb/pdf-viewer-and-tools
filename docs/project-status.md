@@ -80,8 +80,8 @@ Each tab now has a dedicated route file:
 
 Current maturity:
 - `Files` is functional and uses the shared document layer
-- `Tools` is scaffolded and already reuses the shared picker flow
-- `Sign` is scaffolded and can stage a selected document
+- `Tools` is functional and now opens dedicated detail screens for each shipped tool
+- `Sign` now supports a visible-signing MVP with document selection, signature drawing/import, placement presets, and signed PDF export
 - `Scanner` is reserved as the future camera-first entry point
 
 ### 6. Existing viewer flow preserved
@@ -108,21 +108,82 @@ Current integration state:
 - `app` depends on `implementation(project(":pdfbox"))`
 - the imported `pdfbox` build script was patched to remove a legacy AGP-incompatible AAR output block
 
-### 8. Processing engine foundation added
-A first processing abstraction is now present, along with a PDFBox-backed implementation.
+### 8. Processing engine and real tool flows added
+A processing abstraction is now present, along with a PDFBox-backed implementation that powers the current tool set.
 
 Files:
 - `app/src/main/java/com/thestudypath/pdfviewer/processing/PdfProcessingEngine.kt`
 - `app/src/main/java/com/thestudypath/pdfviewer/processing/PdfBoxProcessingEngine.kt`
 
-Current implemented capability:
+Current implemented capabilities:
 - inspect a PDF document
-- read page count
-- detect whether a PDF is encrypted
+- merge PDFs
+- compress PDFs
+- create PDFs from images
+- split PDFs by generated page ranges
+- extract text
+- add password protection
+- remove password protection
+- export selected PDF pages as PNG or JPEG images
+- extract embedded PDF images into standalone image files
+- crop selected PDF page regions into PNG or JPEG images
+- stamp a visible signature image onto a selected PDF page
+- add text watermarks to selected PDF pages
+- rotate selected PDF pages
+- extract selected PDF pages into a new PDF
+- delete selected PDF pages and save the remaining pages as a new PDF
 
-This is the base layer for real processing features such as merge, split, images-to-PDF, and text extraction.
+These capabilities now back the actual shipped tool pages instead of only serving as a future foundation.
 
-### 9. Dependency and feature strategy documented
+### 9. Tools implemented end to end
+The current `Tools` surface now shows a simple list of tools, and each entry opens a dedicated detail screen with the actual workflow UI.
+
+Currently implemented tools:
+- `Compress PDF`
+- `Images to PDF`
+- `PDF to Images`
+- `Extract Embedded Images`
+- `Crop Page Region`
+- `Merge PDFs`
+- `Split PDF`
+- `Extract Text`
+- `Add Password`
+- `Remove Password`
+- `Watermark PDF`
+- `Rotate Pages`
+- `Extract Pages`
+- `Delete Pages`
+
+### 10. Signing MVP implemented
+The `Sign` tab is no longer only a staging surface. It now supports a first visible-signing workflow.
+
+Currently implemented sign capabilities:
+- choose a PDF from the shared document picker
+- draw a signature directly in-app
+- import a signature image from device storage
+- choose a target page
+- choose a placement preset and signature size
+- export a signed PDF copy
+- open, share, or save-copy the signed result
+
+### 11. Shared single-file result/export flow implemented
+Single-file outputs now follow a more consistent result pattern across the shipped PDF and text tools.
+
+Current shared result capabilities include:
+- keep tool outputs in app-private storage by default
+- open the generated result immediately
+- share the generated result with Android sharesheets
+- save a copy to a user-chosen SAF destination via `ACTION_CREATE_DOCUMENT`
+
+This shared flow now covers the current single-file result surfaces such as:
+- merge/compress/images-to-PDF outputs
+- extract text `.txt` outputs
+- password add/remove outputs
+- watermarking outputs
+- rotate/extract/delete page outputs
+- visible-signing outputs
+
+### 12. Dependency and feature strategy documented
 The implementation doc now explicitly describes where each feature should live:
 
 - `:pdf` for viewer and annotation behavior
@@ -140,23 +201,14 @@ The implementation doc now explicitly describes where each feature should live:
 The following are still planned, not shipped:
 
 ### PDF management tools
-- merge PDFs
-- split PDFs
-- compress PDFs
-- images to PDF
-- extract text
-- add/remove password
-- watermarking
-- page reordering/rotation/deletion/extraction
-- embedded image extraction UI
-- page-region crop/export flow
+- page reordering
+- image watermarking
 
 ### Signing
 - saved signature assets
-- draw signature canvas
-- import PNG signature
-- page placement editor
-- signed PDF export flow
+- reusable signature library/asset management across sessions
+- advanced drag/resize/rotate placement editor
+- certificate-backed digital signature flow
 
 ### Scanner
 - CameraX live preview
@@ -171,7 +223,7 @@ The following are still planned, not shipped:
 - WorkManager job orchestration
 - progress reporting
 - job history
-- shared output/export result flow
+- richer folder/batch output export flow for multi-image and multi-file result sets
 
 ## Build verification status
 
@@ -181,7 +233,7 @@ Verified build flow:
 
 ```powershell
 Set-Location "D:\ANDROID-NEW\PDFViewer"
-.\gradlew.bat :pdfbox:assemble :app:assembleDebug --console=plain
+.\gradlew.bat :app:testDebugUnitTest :app:compileDebugKotlin :app:assembleDebug --console=plain --no-daemon
 ```
 
 Verified result:
@@ -189,66 +241,37 @@ Verified result:
 
 ## Recommended next implementation steps
 
-## Step 1 — expand `PdfProcessingEngine`
-Add actual processing operations such as:
-- `mergeDocuments(...)`
-- `splitDocument(...)`
-- `createPdfFromImages(...)`
-- `extractText(...)`
+## Step 1 — add the next organize/export tool wave
+Recommended next tools:
+- page reordering
+- image watermarking
+- richer folder/batch export polish for image-heavy tools
 
-This should remain the main boundary between app UI and PDF processing implementation.
+These features build directly on the same processing boundary, page inspection flow, and result pattern already proven by the current tool set.
 
-## Step 2 — implement Merge PDF first
-Recommended first real tool because it provides high user value and strongly validates the new `:pdfbox` integration.
+## Step 2 — deepen the signing milestone
+Recommended follow-ups for `Sign`:
+- persistent saved signature assets
+- richer drag/resize/rotate placement editor
+- recent signature management
 
-Expected work:
-- tool request model
-- merge flow state
-- multi-select document handling
-- selected file reorder UI
-- output file naming
-- result open/share flow
+## Step 3 — extend result flow to folder and batch outputs
+Finish standardizing how the multi-output tools finish:
+- export image folders to richer SAF destinations
+- handle batch save/share flows consistently
+- add clearer result summaries for larger output sets
+- keep open/share/save-copy behavior aligned with the single-file tools
 
-## Step 3 — implement Split PDF second
-Recommended immediately after merge.
-
-Initial scope:
-- split every N pages
-- split by custom ranges
-- save outputs as a batch
-
-## Step 4 — implement Images to PDF third
-This is a strong early feature because it validates image import and PDF generation and will also support future scanner flows.
-
-Initial scope:
-- import multiple images
-- reorder images
-- choose page size/layout
-- generate output PDF
-
-## Step 5 — add shared processing result flow
-Standardize how every tool finishes:
-- save in app storage
-- export with SAF
-- open result immediately
-- share result
-
-## Step 6 — add background job handling
+## Step 4 — add background job handling
 Introduce `WorkManager` for heavier operations such as:
 - merge on large files
 - compression
+- signing on larger documents
 - OCR
 - scan export
 
-## Step 7 — start the signing milestone
-After the first few real tools, implement:
-- signature asset storage
-- signature drawing UI
-- PNG signature import
-- visible signature placement on PDFs
-
-## Step 8 — start scanner MVP
-After core tools are stable, implement scanner MVP with:
+## Step 5 — start scanner MVP
+After the current document tools and signing flow are stable, implement scanner MVP with:
 - CameraX preview
 - OpenCV edge detection
 - manual capture
@@ -256,13 +279,10 @@ After core tools are stable, implement scanner MVP with:
 - PDF export
 
 ## Recommended execution order
-1. Merge PDFs
-2. Split PDF
-3. Images to PDF
-4. Extract text
-5. Password add/remove validation spike
-6. Signing milestone
-7. Scanner MVP
+1. Shared export/result flow polish and page reordering
+2. Persistent signature assets and richer placement
+3. Image watermarking and richer page picking
+4. Scanner MVP
 
 ## Short version
 
@@ -272,9 +292,15 @@ After core tools are stable, implement scanner MVP with:
 - shared document layer
 - shared picker UI
 - PDFBox module integration
-- processing engine foundation
+- processing engine with real PDF operations
+- visible-signing MVP
+- shared single-file result/export flow with SAF save-copy
+- text watermarking MVP
+- PDF-to-images MVP
+- embedded-image extraction MVP
+- page-region crop/export MVP
 - successful build verification
 
 ### Next best step
-Implement real `Merge PDFs` end to end using the current `Tools` tab and the new `PdfProcessingEngine` abstraction.
+Build the next organize/export wave on top of the now-functional tool detail pattern, processing engine, shared single-file result flow, signing MVP, watermarking MVP, PDF-to-images MVP, embedded-image extraction MVP, page-region crop/export MVP, and page-organization tools, starting with page reordering, image watermarking, and richer folder/batch export polish.
 

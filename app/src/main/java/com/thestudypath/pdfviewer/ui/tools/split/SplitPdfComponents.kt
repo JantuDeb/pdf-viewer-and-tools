@@ -9,9 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.ContentCut
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -29,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.thestudypath.pdfviewer.catalog.DocumentItem
 import com.thestudypath.pdfviewer.ui.documents.DocumentSummaryCard
+import com.thestudypath.pdfviewer.ui.results.ResultActionButtons
 
 @Composable
 fun SplitPdfWorkspaceCard(
@@ -41,6 +40,7 @@ fun SplitPdfWorkspaceCard(
     onSplit: () -> Unit,
     onOpenSplitDocument: (DocumentItem) -> Unit,
     onShareSplitDocument: (DocumentItem) -> Unit,
+    onSaveCopySplitDocument: (DocumentItem) -> Unit,
 ) {
     val canSplit = uiState.selectedDocument != null &&
         uiState.selectedDocumentPageCount != null &&
@@ -198,6 +198,7 @@ fun SplitPdfWorkspaceCard(
                             document = document,
                             onOpen = { onOpenSplitDocument(document) },
                             onShare = { onShareSplitDocument(document) },
+                            onSaveCopy = { onSaveCopySplitDocument(document) },
                         )
                     }
                 }
@@ -235,6 +236,7 @@ private fun SplitOutputItem(
     document: DocumentItem,
     onOpen: () -> Unit,
     onShare: () -> Unit,
+    onSaveCopy: () -> Unit,
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -248,31 +250,11 @@ private fun SplitOutputItem(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             DocumentSummaryCard(document = document)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Button(
-                    onClick = onOpen,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
-                    Text(
-                        text = "Open",
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                }
-                Button(
-                    onClick = onShare,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(Icons.Default.Share, contentDescription = null)
-                    Text(
-                        text = "Share",
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                }
-            }
+            ResultActionButtons(
+                onOpen = onOpen,
+                onShare = onShare,
+                onSaveCopy = onSaveCopy,
+            )
         }
     }
 }
